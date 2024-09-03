@@ -3,9 +3,10 @@ from openpyxl import Workbook
 from datetime import datetime as dt
 import os
 
+# TODO: comprobar formulas
 def calculate_amounts(percep_ord, percep_extra, deductions, formula_type):
     formulas = {
-        '1': lambda: (percep_ord + percep_extra) - deductions,  # Liquido
+        '1': lambda: (percep_ord + percep_extra) - deductions,  # Liquido TODO: usar deducciones de ley
         '2': lambda: (percep_ord + percep_extra) - deductions,  # Neto
         '3': lambda: percep_ord + percep_extra,                 # Solo percepciones
         '4': lambda: percep_ord - deductions,                   # Percepciones ordinarias - deducciones de ley
@@ -155,8 +156,24 @@ def main():
         xindex += 1
 
         mount_per_period = mount_to_discount / payment_period
-        for period in range(payment_period):
-            lstqnaproc += 1  # Ajuste para saltar de la quincena 24 a la 01, si es necesario
+        for i in range(payment_period):
+            lstqna_str = str(lstqnaproc)
+
+            year = lstqna_str[:4]
+            num_qna = lstqna_str[4:]
+
+            year = int(year)
+            num_qna = int(num_qna)
+
+            if (num_qna >= 24):
+                year += 1
+                num_qna = 0
+            
+            num_qna += 1
+
+            lstqnaproc = f"{year}{num_qna:02}"
+
+            ws[f"B{xindex}"] = i + 1
             ws[f"C{xindex}"] = lstqnaproc
             ws[f"D{xindex}"] = "{0:.2f}".format(mount_per_period)
             xindex += 1
