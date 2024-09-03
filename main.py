@@ -15,7 +15,7 @@ def calculate_amounts(percep_ord, percep_extra, deductions, formula_type):
         '7': lambda: percep_extra,                              # Solo percepciones extraordinarias
         '8': lambda: (percep_ord + percep_extra) - deductions,  # Sueldo (percepciones 07)
     }
-    return formulas.get(formula_type, lambda: 0)()
+    return formulas.get(formula_type, lambda: (percep_ord + percep_extra) - deductions)()
 
 def get_personal_data(df, personal):
     rfc = df["rfc"].unique()[0]
@@ -57,7 +57,7 @@ def main():
     
     if process_type == '1':
         discount_percent = int(input("¿Qué porcentaje se le va a descontar al trabajador? ")) * 0.01
-        money_formula = input("¿Qué fórmula se usará?\n 1) Líquido\n 2) Neto\n 3) Solo percepciones\n 4) Percepciones ordinarias - deducciones de ley\n 5) Percepciones extraordinarias - deducciones de ley\n 6) Solo ordinarias\n 7) Solo extraordinarias\n 8) Percepciones 07\nIngrese el número de su elección: ")
+        money_formula = input("¿Qué fórmula se usará?\n 1) Líquido\n 2) Neto\n 3) Solo percepciones\n 4) Percepciones ordinarias - deducciones de ley\n 5) Percepciones extraordinarias - deducciones de ley\n 6) Solo ordinarias\n 7) Solo extraordinarias\n 8) Percepciones 07\nIngrese el número de su elección (default: 1): ")
         payment_period = int(input("¿Cuántas quincenas se le va a cobrar? "))
     else:
         discount_percent = 1
@@ -119,6 +119,8 @@ def main():
         for concepto in gended["conceptosiapsep"].unique()
     ]
     xindex, total_deduc_ord = write_excel(ws, f"Deducciones Ordinarias {lstqnaproc}", data, xindex, "Total Deducciones Ordinarias")
+
+    # TODO: obtener deducciones de ley
 
     # Percepciones Extraordinarias
     nocont = converter("PercepExtra_NoContarPensiones.xlsx")
