@@ -1,11 +1,28 @@
 from funcs.converter import converter, check_valid_dir
 from openpyxl import Workbook
 from datetime import datetime as dt
+import pandas as pd
 import os
+import sys
 
 # Definir constantes
 LEY_CONCEPTS = ["01", "58", "59", "5G", "70", "74", "77", "IN", "P2", "R9", "RV", "SS"]
 SUELDO_CONCEPTS = ["07", "7A", "7B", "7C", "7D", "7E"]
+
+def get_resource_path(relative_path):
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+def load_excel_file(filename):
+    """Carga un archivo Excel desde la ruta correcta, usando get_resource_path."""
+    file_path = get_resource_path(f'excel_files/{filename}')
+    df_file = converter(file_path)
+    return df_file
 
 def calculate_amounts(percep_ord, percep_extra, deductions, ley_deductions, sueldo, formula_type):
     formulas = {
@@ -81,11 +98,11 @@ def main():
     df = converter(file_name)
 
     # 2) Leer percepciones y deducciones
-    percep = converter("percepciones.xlsx")
+    percep = load_excel_file("percepciones.xlsx")
     perord = df[(df["tipoconcepto"] == "Percepción") & (df["conceptosiapsep"].isin(percep["clave"]))]
     perext = df[(df["tipoconcepto"] == "Percepción") & (~df["conceptosiapsep"].isin(percep["clave"]))]
 
-    deducs = converter("deducciones.xlsx")
+    deducs = load_excel_file("deducciones.xlsx")
     deducs["concepto"] = deducs["concepto"].astype(str)
     gended = df[(df["tipoconcepto"] == "Deducción") & (df["conceptosiapsep"].isin(deducs["concepto"]))]
     outded = df[(df["tipoconcepto"] == "Deducción") & (~df["conceptosiapsep"].isin(deducs["concepto"]))]
@@ -93,7 +110,7 @@ def main():
     # 4) Obtener datos del empleado
     fstqnaproc = df["qnaproc"].min()
     lstqnaproc = df["qnaproc"].max()
-    personal = converter("Personal.xlsx")
+    personal = load_excel_file("Personal.xlsx")
     rfc, name = get_personal_data(df, personal)
 
     # 5) Crear y escribir en archivo Excel
@@ -134,7 +151,7 @@ def main():
     xindex, total_deduc_ord = write_excel(ws, f"Deducciones Ordinarias {lstqnaproc}", data, xindex, "Total Deducciones Ordinarias")
 
     # Percepciones Extraordinarias
-    nocont = converter("PercepExtra_NoContarPensiones.xlsx")
+    nocont = load_excel_file("PercepExtra_NoContarPensiones.xlsx")
     data = [
         {
             "concepto": concepto,
@@ -215,9 +232,12 @@ def main():
         wb.save(filename=filename)
         print(f"Archivo guardado exitosamente con el nombre '{filename.split('/')[-1]}'")
     except Exception as ex:
-        print(f"Error = {ex}")
-    finally:
-        print("Programa Finalizado")
+        print(f"Error = {ex}")    
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"Se ha producido un error: {e}")
+    finally:
+        os.system("pause")
