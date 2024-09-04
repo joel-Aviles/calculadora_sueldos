@@ -3,19 +3,23 @@ from openpyxl import Workbook
 from datetime import datetime as dt
 import os
 
+# Definir constantes
+LEY_CONCEPTS = ["01", "58", "59", "5G", "70", "74", "77", "IN", "P2", "R9", "RV", "SS"]
+SUELDO_CONCEPTS = ["07", "7A", "7B", "7C", "7D", "7E"]
+
 def calculate_amounts(percep_ord, percep_extra, deductions, ley_deductions, sueldo, formula_type):
     formulas = {
-        '1': {'formula_name': 'Liquido', 'formula': lambda: (percep_ord + percep_extra) - ley_deductions}, 
-        '2': {'formula_name': 'Neto', 'formula': lambda: (percep_ord + percep_extra) - deductions}, 
-        '3': {'formula_name': 'Solo percepciones', 'formula': lambda: percep_ord + percep_extra}, 
-        '4': {'formula_name': 'Percepciones ordinarias - deducciones de ley', 'formula': lambda: percep_ord - ley_deductions}, 
-        '5': {'formula_name': 'Percepciones extraordinarias - deducciones de ley', 'formula': lambda: percep_extra - ley_deductions}, 
-        '6': {'formula_name': 'Solo percepciones ordinarias', 'formula': lambda: percep_ord}, 
-        '7': {'formula_name': 'Solo percepciones extraordinarias', 'formula': lambda: percep_extra}, 
-        '8': {'formula_name': 'Sueldo (percepciones 07)', 'formula': lambda: sueldo}, 
+        '1': {'formula_name': 'Liquido', 'formula': lambda: (percep_ord + percep_extra) - ley_deductions},
+        '2': {'formula_name': 'Neto', 'formula': lambda: (percep_ord + percep_extra) - deductions},
+        '3': {'formula_name': 'Solo percepciones', 'formula': lambda: percep_ord + percep_extra},
+        '4': {'formula_name': 'Percepciones ordinarias - deducciones de ley', 'formula': lambda: percep_ord - ley_deductions},
+        '5': {'formula_name': 'Percepciones extraordinarias - deducciones de ley', 'formula': lambda: percep_extra - ley_deductions},
+        '6': {'formula_name': 'Solo percepciones ordinarias', 'formula': lambda: percep_ord},
+        '7': {'formula_name': 'Solo percepciones extraordinarias', 'formula': lambda: percep_extra},
+        '8': {'formula_name': 'Sueldo (percepciones 07)', 'formula': lambda: sueldo},
     }
 
-    selected_formula = formulas.get(formula_type, formulas['1'])  # Usa '1' como predeterminado si no se encuentra formula_type
+    selected_formula = formulas.get(formula_type, formulas['1'])
     return {
         'formula_name': selected_formula['formula_name'],
         'amount': selected_formula['formula']()
@@ -55,8 +59,7 @@ def write_excel(ws, section, data, start_row, total_label):
     ws[f"G{row}"] = total_sum
     return row + 2, total_sum
 
-def main():
-    # 1) Leer archivo
+def prompt_user_input():
     process_type = input("¿Qué proceso deseas llevar a cabo?\n 1) Pensión alimenticia\n 2) Juicios mercantiles\nIngrese su elección (1 ó 2): ")
     
     if process_type == '1':
@@ -68,14 +71,20 @@ def main():
         money_formula = '1'
         payment_period = 1
 
-    df = converter(input("Nombre del archivo: "))
+    file_name = input("Nombre del archivo: ")
+    
+    return process_type, discount_percent, money_formula, payment_period, file_name
 
-    # 2) Leer percepciones
+def main():
+    # 1) Leer archivo
+    process_type, discount_percent, money_formula, payment_period, file_name = prompt_user_input()
+    df = converter(file_name)
+
+    # 2) Leer percepciones y deducciones
     percep = converter("percepciones.xlsx")
     perord = df[(df["tipoconcepto"] == "Percepción") & (df["conceptosiapsep"].isin(percep["clave"]))]
     perext = df[(df["tipoconcepto"] == "Percepción") & (~df["conceptosiapsep"].isin(percep["clave"]))]
 
-    # 3) Leer deducciones
     deducs = converter("deducciones.xlsx")
     deducs["concepto"] = deducs["concepto"].astype(str)
     gended = df[(df["tipoconcepto"] == "Deducción") & (df["conceptosiapsep"].isin(deducs["concepto"]))]
@@ -139,19 +148,17 @@ def main():
     xindex, total_percep_extra = write_excel(ws, "Percepciones extraordinarias anuales", data, xindex, "Total Percepciones Extraordinarias")
 
     # Deducciones de ley
-    ley_concepts = ["01", "58", "59", "5G", "70", "74", "77", "IN", "P2", "R9", "RV", "SS"]
     total_deduc_ley = sum(
         gended[(gended["conceptosiapsep"] == concepto) & (gended["qnaproc"] == lstqnaproc)]["importe"].sum()
         for concepto in gended["conceptosiapsep"].unique()
-        if concepto in ley_concepts
+        if concepto in LEY_CONCEPTS
     )
 
     # Percepciones de sueldo
-    concepts = ["07", "7A", "7B", "7C", "7D", "7E"]
     total_sueldo = sum(
         perord[(perord["conceptosiapsep"] == concepto) & (perord["qnaproc"] == lstqnaproc)]["importe"].sum()
         for concepto in perord["conceptosiapsep"].unique()
-        if concepto in concepts
+        if concepto in SUELDO_CONCEPTS
     )
 
     # 6) Formato para pensiones alimenticias
