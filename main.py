@@ -3,19 +3,23 @@ from openpyxl import Workbook
 from datetime import datetime as dt
 import os
 
-# TODO: comprobar formulas
-def calculate_amounts(percep_ord, percep_extra, deductions, formula_type):
+def calculate_amounts(percep_ord, percep_extra, deductions, ley_deductions, sueldo, formula_type):
     formulas = {
-        '1': lambda: (percep_ord + percep_extra) - deductions,  # Liquido TODO: usar deducciones de ley
-        '2': lambda: (percep_ord + percep_extra) - deductions,  # Neto
-        '3': lambda: percep_ord + percep_extra,                 # Solo percepciones
-        '4': lambda: percep_ord - deductions,                   # Percepciones ordinarias - deducciones de ley
-        '5': lambda: percep_extra - deductions,                 # Percepciones extraordinarias - deducciones de ley
-        '6': lambda: percep_ord,                                # Solo percepciones ordinarias
-        '7': lambda: percep_extra,                              # Solo percepciones extraordinarias
-        '8': lambda: (percep_ord + percep_extra) - deductions,  # Sueldo (percepciones 07)
+        '1': {'formula_name': 'Liquido', 'formula': lambda: (percep_ord + percep_extra) - ley_deductions}, 
+        '2': {'formula_name': 'Neto', 'formula': lambda: (percep_ord + percep_extra) - deductions}, 
+        '3': {'formula_name': 'Solo percepciones', 'formula': lambda: percep_ord + percep_extra}, 
+        '4': {'formula_name': 'Percepciones ordinarias - deducciones de ley', 'formula': lambda: percep_ord - ley_deductions}, 
+        '5': {'formula_name': 'Percepciones extraordinarias - deducciones de ley', 'formula': lambda: percep_extra - ley_deductions}, 
+        '6': {'formula_name': 'Solo percepciones ordinarias', 'formula': lambda: percep_ord}, 
+        '7': {'formula_name': 'Solo percepciones extraordinarias', 'formula': lambda: percep_extra}, 
+        '8': {'formula_name': 'Sueldo (percepciones 07)', 'formula': lambda: sueldo}, 
     }
-    return formulas.get(formula_type, lambda: (percep_ord + percep_extra) - deductions)()
+
+    selected_formula = formulas.get(formula_type, formulas['1'])  # Usa '1' como predeterminado si no se encuentra formula_type
+    return {
+        'formula_name': selected_formula['formula_name'],
+        'amount': selected_formula['formula']()
+    }
 
 def get_personal_data(df, personal):
     rfc = df["rfc"].unique()[0]
@@ -120,8 +124,6 @@ def main():
     ]
     xindex, total_deduc_ord = write_excel(ws, f"Deducciones Ordinarias {lstqnaproc}", data, xindex, "Total Deducciones Ordinarias")
 
-    # TODO: obtener deducciones de ley
-
     # Percepciones Extraordinarias
     nocont = converter("PercepExtra_NoContarPensiones.xlsx")
     data = [
@@ -136,13 +138,29 @@ def main():
     ]
     xindex, total_percep_extra = write_excel(ws, "Percepciones extraordinarias anuales", data, xindex, "Total Percepciones Extraordinarias")
 
+    # Deducciones de ley
+    ley_concepts = ["01", "58", "59", "5G", "70", "74", "77", "IN", "P2", "R9", "RV", "SS"]
+    total_deduc_ley = sum(
+        gended[(gended["conceptosiapsep"] == concepto) & (gended["qnaproc"] == lstqnaproc)]["importe"].sum()
+        for concepto in gended["conceptosiapsep"].unique()
+        if concepto in ley_concepts
+    )
+
+    # Percepciones de sueldo
+    concepts = ["07", "7A", "7B", "7C", "7D", "7E"]
+    total_sueldo = sum(
+        perord[(perord["conceptosiapsep"] == concepto) & (perord["qnaproc"] == lstqnaproc)]["importe"].sum()
+        for concepto in perord["conceptosiapsep"].unique()
+        if concepto in concepts
+    )
+
     # 6) Formato para pensiones alimenticias
     if process_type == '1':
-        formula_result = calculate_amounts(total_percep_ord, total_percep_extra, total_deduc_ord, money_formula)
-        mount_to_discount = formula_result * discount_percent
+        formula_result = calculate_amounts(total_percep_ord, total_percep_extra, total_deduc_ord, total_deduc_ley, total_sueldo, money_formula)
+        mount_to_discount = formula_result["amount"] * discount_percent
 
         ws[f"B{xindex}"] = "Fórmula usada"
-        ws[f"C{xindex}"] = money_formula
+        ws[f"C{xindex}"] = formula_result["formula_name"]
         xindex += 1
         ws[f"B{xindex}"] = "Descuento del " + str(discount_percent * 100) + "%"
         ws[f"C{xindex}"] = mount_to_discount
