@@ -208,12 +208,12 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
     # 6) Formato para pensiones alimenticias
     if process_type == '1':
         formula_result = calculate_amounts(total_percep_ord, total_percep_extra, total_deduc_ord, total_deduc_ley, total_sueldo, money_formula)
-        mount_to_discount = formula_result["amount"] * discount_percent
+        mount_to_discount = formula_result["amount"] * (discount_percent / 100)
 
         ws[f"B{xindex}"] = "Fórmula usada"
         ws[f"C{xindex}"] = formula_result["formula_name"]
         xindex += 1
-        ws[f"B{xindex}"] = "Descuento del " + str(discount_percent * 100) + "%"
+        ws[f"B{xindex}"] = "Descuento del " + str(discount_percent) + "%"
         ws[f"C{xindex}"] = mount_to_discount
         xindex += 2
 
@@ -251,8 +251,8 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
 
     # 7) Guardar archivo Excel
     dirpath = validate_dir(f"C:/caluladora/pensiones")
-    counters = len([file for file in os.listdir(dirpath) if f"{rfc}-" in file and ".xlsx" in file])
-    filename = f"{dirpath}/{rfc}-{dt.now().strftime('%d%m%Y')}_{counters + 1}.xlsx"
+    counters = len([file for file in os.listdir(dirpath) if f"{rfc}_" in file and ".xlsx" in file])
+    filename = f"{dirpath}/{rfc}_{dt.now().strftime('%d%m%Y')}_{counters + 1}.xlsx"
 
     wb.save(filename=filename)
     return filename
