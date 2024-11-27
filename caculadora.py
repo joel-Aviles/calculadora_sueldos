@@ -102,24 +102,6 @@ def write_excel(ws, section, data, start_row, total_label):
     ws[f"G{row}"] = total_sum
     return row + 2, total_sum
 
-def prompt_user_input():
-    process_type = input("¿Qué proceso deseas llevar a cabo?\n 1) Pensión alimenticia\n 2) Juicios mercantiles\nIngrese su elección (1 ó 2): ")
-    
-    if process_type == '1':
-        discount_percent = int(input("¿Qué porcentaje se le va a descontar al trabajador? ")) * 0.01
-
-        money_formula = input("¿Qué fórmula se usará?\n 1) Líquido\n 2) Neto\n 3) Solo percepciones\n 4) Percepciones ordinarias - deducciones de ley\n 5) Percepciones extraordinarias - deducciones de ley\n 6) Solo ordinarias\n 7) Solo extraordinarias\n 8) Percepciones 07\nIngrese el número de su elección (default: 1): ")
-
-        payment_period = int(input("¿Cuántas quincenas se le va a cobrar? "))
-    else:
-        discount_percent = 1
-        money_formula = '1'
-        payment_period = 1
-
-    file_name = input("Nombre del archivo: ")
-    
-    return process_type, discount_percent, money_formula, payment_period, file_name
-
 def process_and_create_excel(process_type, discount_percent, money_formula, payment_period, file_name):
     # 1) Leer archivo
     df = excel_2_dataframe(file_name)
@@ -135,8 +117,8 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
     outded = df[(df["tipoconcepto"] == "Deducción") & (~df["conceptosiapsep"].isin(deducs["concepto"]))]
 
     # 4) Obtener datos del empleado
-    fstqnaproc = df["qnaproc"].min()
-    lstqnaproc = df["qnaproc"].max()
+    fstqnapago = df["qnapago"].min()
+    lstqnapago = df["qnapago"].max()
     personal = load_excel_file("Personal.xlsx")
     rfc, name = get_personal_data(df, personal)
 
@@ -151,31 +133,31 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
     ws["B5"] = "Qna Devengada"
     ws["C3"] = name
     ws["C4"] = rfc
-    ws["C5"] = lstqnaproc
+    ws["C5"] = lstqnapago
 
     # Percepciones Ordinarias
     data = [
         {
             "concepto": concepto,
             "descrip": percep.loc[percep["clave"] == concepto, "descripcion"].iloc[0],
-            "suma": perord[(perord["conceptosiapsep"] == concepto) & (perord["qnaproc"] == lstqnaproc)]["importe"].sum(),
+            "suma": perord[(perord["conceptosiapsep"] == concepto) & (perord["qnapago"] == lstqnapago)]["importe"].sum(),
             "tipo": "Percepción"
         }
         for concepto in perord["conceptosiapsep"].unique()
     ]
-    xindex, total_percep_ord = write_excel(ws, f"Percepciones Ordinarias {lstqnaproc}", data, 7, "Total Percepciones Ordinarias")
+    xindex, total_percep_ord = write_excel(ws, f"Percepciones Ordinarias {lstqnapago}", data, 7, "Total Percepciones Ordinarias")
 
     # Deducciones Ordinarias
     data = [
         {
             "concepto": concepto,
             "descrip": deducs.loc[deducs["concepto"] == concepto, "descripcion"].iloc[0],
-            "suma": gended[(gended["conceptosiapsep"] == concepto) & (gended["qnaproc"] == lstqnaproc)]["importe"].sum(),
+            "suma": gended[(gended["conceptosiapsep"] == concepto) & (gended["qnapago"] == lstqnapago)]["importe"].sum(),
             "tipo": "Deducción"
         }
         for concepto in gended["conceptosiapsep"].unique()
     ]
-    xindex, total_deduc_ord = write_excel(ws, f"Deducciones Ordinarias {lstqnaproc}", data, xindex, "Total Deducciones Ordinarias")
+    xindex, total_deduc_ord = write_excel(ws, f"Deducciones Ordinarias {lstqnapago}", data, xindex, "Total Deducciones Ordinarias")
 
     # Percepciones Extraordinarias
     nocont = load_excel_file("PercepExtra_NoContarPensiones.xlsx")
@@ -183,7 +165,7 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
         {
             "concepto": concepto,
             "descrip": perext.loc[perext["conceptosiapsep"] == concepto, "descripciondeconcepto"].iloc[0],
-            "suma": perext[(perext["conceptosiapsep"] == concepto) & (perext["qnapago"] >= fstqnaproc)]["importe"].sum(),
+            "suma": perext[(perext["conceptosiapsep"] == concepto) & (perext["qnapago"] >= fstqnapago)]["importe"].sum(),
             "tipo": "Percepción"
         }
         for concepto in perext["conceptosiapsep"].unique()
@@ -193,14 +175,14 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
 
     # Deducciones de ley
     total_deduc_ley = sum(
-        gended[(gended["conceptosiapsep"] == concepto) & (gended["qnaproc"] == lstqnaproc)]["importe"].sum()
+        gended[(gended["conceptosiapsep"] == concepto) & (gended["qnapago"] == lstqnapago)]["importe"].sum()
         for concepto in gended["conceptosiapsep"].unique()
         if concepto in LEY_CONCEPTS
     )
 
     # Percepciones de sueldo
     total_sueldo = sum(
-        perord[(perord["conceptosiapsep"] == concepto) & (perord["qnaproc"] == lstqnaproc)]["importe"].sum()
+        perord[(perord["conceptosiapsep"] == concepto) & (perord["qnapago"] == lstqnapago)]["importe"].sum()
         for concepto in perord["conceptosiapsep"].unique()
         if concepto in SUELDO_CONCEPTS
     )
@@ -228,7 +210,7 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
 
         mount_per_period = mount_to_discount / payment_period
         for i in range(payment_period):
-            lstqna_str = str(lstqnaproc)
+            lstqna_str = str(lstqnapago)
 
             year = lstqna_str[:4]
             num_qna = lstqna_str[4:]
@@ -242,10 +224,10 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
             
             num_qna += 1
 
-            lstqnaproc = f"{year}{num_qna:02}"
+            lstqnapago = f"{year}{num_qna:02}"
 
             ws[f"B{xindex}"] = i + 1
-            ws[f"C{xindex}"] = lstqnaproc
+            ws[f"C{xindex}"] = lstqnapago
             ws[f"D{xindex}"] = "{0:.2f}".format(mount_per_period)
             xindex += 1
 
@@ -255,150 +237,7 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
     filename = f"{dirpath}/{rfc}_{dt.now().strftime('%d%m%Y')}_{counters + 1}.xlsx"
 
     wb.save(filename=filename)
-    return filename
-
-
-def cli():
-    # 1) Leer archivo
-    process_type, discount_percent, money_formula, payment_period, file_name = prompt_user_input()
-    df = excel_2_dataframe(file_name)
-
-    # 2) Leer percepciones y deducciones
-    percep = load_excel_file("percepciones.xlsx")
-    perord = df[(df["tipoconcepto"] == "Percepción") & (df["conceptosiapsep"].isin(percep["clave"]))]
-    perext = df[(df["tipoconcepto"] == "Percepción") & (~df["conceptosiapsep"].isin(percep["clave"]))]
-
-    deducs = load_excel_file("deducciones.xlsx")
-    deducs["concepto"] = deducs["concepto"].astype(str)
-    gended = df[(df["tipoconcepto"] == "Deducción") & (df["conceptosiapsep"].isin(deducs["concepto"]))]
-    outded = df[(df["tipoconcepto"] == "Deducción") & (~df["conceptosiapsep"].isin(deducs["concepto"]))]
-
-    # 4) Obtener datos del empleado
-    fstqnaproc = df["qnaproc"].min()
-    lstqnaproc = df["qnaproc"].max()
-    personal = load_excel_file("Personal.xlsx")
-    rfc, name = get_personal_data(df, personal)
-
-    # 5) Crear y escribir en archivo Excel
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Prueba"
-
-    ws["B2"] = "Datos del Empleado"
-    ws["B3"] = "Nombre"
-    ws["B4"] = "RFC"
-    ws["B5"] = "Qna Devengada"
-    ws["C3"] = name
-    ws["C4"] = rfc
-    ws["C5"] = lstqnaproc
-
-    # Percepciones Ordinarias
-    data = [
-        {
-            "concepto": concepto,
-            "descrip": percep.loc[percep["clave"] == concepto, "descripcion"].iloc[0],
-            "suma": perord[(perord["conceptosiapsep"] == concepto) & (perord["qnaproc"] == lstqnaproc)]["importe"].sum(),
-            "tipo": "Percepción"
-        }
-        for concepto in perord["conceptosiapsep"].unique()
-    ]
-    xindex, total_percep_ord = write_excel(ws, f"Percepciones Ordinarias {lstqnaproc}", data, 7, "Total Percepciones Ordinarias")
-
-    # Deducciones Ordinarias
-    data = [
-        {
-            "concepto": concepto,
-            "descrip": deducs.loc[deducs["concepto"] == concepto, "descripcion"].iloc[0],
-            "suma": gended[(gended["conceptosiapsep"] == concepto) & (gended["qnaproc"] == lstqnaproc)]["importe"].sum(),
-            "tipo": "Deducción"
-        }
-        for concepto in gended["conceptosiapsep"].unique()
-    ]
-    xindex, total_deduc_ord = write_excel(ws, f"Deducciones Ordinarias {lstqnaproc}", data, xindex, "Total Deducciones Ordinarias")
-
-    # Percepciones Extraordinarias
-    nocont = load_excel_file("PercepExtra_NoContarPensiones.xlsx")
-    data = [
-        {
-            "concepto": concepto,
-            "descrip": perext.loc[perext["conceptosiapsep"] == concepto, "descripciondeconcepto"].iloc[0],
-            "suma": perext[(perext["conceptosiapsep"] == concepto) & (perext["qnapago"] >= fstqnaproc)]["importe"].sum(),
-            "tipo": "Percepción"
-        }
-        for concepto in perext["conceptosiapsep"].unique()
-        if concepto not in nocont[nocont["cuenta"].str.lower() == "no"]["concepto"].to_list()
-    ]
-    xindex, total_percep_extra = write_excel(ws, "Percepciones extraordinarias anuales", data, xindex, "Total Percepciones Extraordinarias")
-
-    # Deducciones de ley
-    total_deduc_ley = sum(
-        gended[(gended["conceptosiapsep"] == concepto) & (gended["qnaproc"] == lstqnaproc)]["importe"].sum()
-        for concepto in gended["conceptosiapsep"].unique()
-        if concepto in LEY_CONCEPTS
-    )
-
-    # Percepciones de sueldo
-    total_sueldo = sum(
-        perord[(perord["conceptosiapsep"] == concepto) & (perord["qnaproc"] == lstqnaproc)]["importe"].sum()
-        for concepto in perord["conceptosiapsep"].unique()
-        if concepto in SUELDO_CONCEPTS
-    )
-
-    # 6) Formato para pensiones alimenticias
-    if process_type == '1':
-        formula_result = calculate_amounts(total_percep_ord, total_percep_extra, total_deduc_ord, total_deduc_ley, total_sueldo, money_formula)
-        mount_to_discount = formula_result["amount"] * discount_percent
-
-        ws[f"B{xindex}"] = "Fórmula usada"
-        ws[f"C{xindex}"] = formula_result["formula_name"]
-        xindex += 1
-        ws[f"B{xindex}"] = "Descuento del " + str(discount_percent * 100) + "%"
-        ws[f"C{xindex}"] = mount_to_discount
-        xindex += 2
-
-        # Pagos retroactivos
-        ws[f"B{xindex}"] = "Periodo"
-        ws[f"C{xindex}"] = str(payment_period) + " Quincenas"
-        xindex += 1
-        ws[f"B{xindex}"] = "Consecutivo"
-        ws[f"C{xindex}"] = "Número de quincena"
-        ws[f"D{xindex}"] = "Monto"
-        xindex += 1
-
-        mount_per_period = mount_to_discount / payment_period
-        for i in range(payment_period):
-            lstqna_str = str(lstqnaproc)
-
-            year = lstqna_str[:4]
-            num_qna = lstqna_str[4:]
-
-            year = int(year)
-            num_qna = int(num_qna)
-
-            if (num_qna >= 24):
-                year += 1
-                num_qna = 0
-            
-            num_qna += 1
-
-            lstqnaproc = f"{year}{num_qna:02}"
-
-            ws[f"B{xindex}"] = i + 1
-            ws[f"C{xindex}"] = lstqnaproc
-            ws[f"D{xindex}"] = "{0:.2f}".format(mount_per_period)
-            xindex += 1
-
-    # 7) Guardar archivo Excel
-    userpath = os.path.expanduser(os.getenv('USERPROFILE'))
-    dirpath = validate_dir(f"{userpath}/OneDrive - Secretaría de Educación de Guanajuato/tmp/Pensiones/{rfc}")
-    counters = len([file for file in os.listdir(dirpath) if f"{rfc}-" in file and ".xlsx" in file])
-    filename = f"{dirpath}/{rfc}-{dt.now().strftime('%d%m%Y')}_{counters + 1}.xlsx"
-
-    try:
-        wb.save(filename=filename)
-        print(f"Archivo guardado exitosamente con el nombre '{filename.split('/')[-1]}'")
-    except Exception as ex:
-        print(f"Error = {ex}")    
+    return filename  
 
 if __name__ == '__main__':
     try:
