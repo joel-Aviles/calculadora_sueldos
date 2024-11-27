@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from caculadora import process_and_create_excel
 from helpers import is_valid_file_path, clean_old_files
 import logging
@@ -7,6 +8,14 @@ import shutil
 import os
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 ALLOWED_MIME_TYPES = ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
 
@@ -28,8 +37,8 @@ def health():
 async def procesar(
     process_type: str = Form(...),
     discount_percent: float = Form(...),
-    money_formula: str = Form(...),
-    payment_period: int = Form(...),
+    money_formula: str = Form(None),
+    payment_period: int = Form(None),
     file: UploadFile = File(...),
 ):
     
@@ -67,8 +76,8 @@ async def procesar(
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
 
-@app.get("/descargar")
-async def descargar(file_path: str = Form(...)):
+@app.get("/descargar/{file_path:path}")  # :path permite rutas con directorios
+async def descargar(file_path: str):
     # Validar la ruta del archivo
     if not is_valid_file_path(file_path):
         logging.warning(f"Ruta no válida: {file_path}, Endpoint: descargar")
@@ -77,7 +86,6 @@ async def descargar(file_path: str = Form(...)):
     try:
         # Comprobar si el archivo existe en la ruta proporcionada
         if os.path.exists(file_path):
-            # Se podría agregar un log de acceso aquí si se requiere
             logging.info(f"Endpoint: descargar, file: {file_path}")
             return FileResponse(file_path, filename=os.path.basename(file_path))
         else:
