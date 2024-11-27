@@ -39,6 +39,7 @@ async def procesar(
     discount_percent: float = Form(...),
     money_formula: str = Form(None),
     payment_period: int = Form(None),
+    retroactive_period: int = Form(None),
     file: UploadFile = File(...),
 ):
     
@@ -58,6 +59,7 @@ async def procesar(
             discount_percent,
             money_formula,
             payment_period,
+            retroactive_period,
             temp_file_path
         )
 

@@ -52,3 +52,16 @@ def clean_old_files(directory: str):
                 except Exception as e:
                     logging.error(f"Error al intentar eliminar el archivo {file_path}: {str(e)}")
     
+def restar_quincenas(qna_actual, n):
+    year = qna_actual // 100
+    qna = qna_actual % 100
+
+    # Restar las quincenas
+    for _ in range(n):
+        if qna == 1:  # Si es la primera quincena del año
+            year -= 1
+            qna = 24  # Cambiar a la última quincena del año anterior
+        else:
+            qna -= 1
+
+    return year * 100 + qna

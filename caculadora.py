@@ -1,6 +1,7 @@
 from openpyxl import Workbook
 from datetime import datetime as dt
 from unidecode import unidecode
+from helpers import restar_quincenas
 import pandas as pd
 import os
 import sys
@@ -102,7 +103,7 @@ def write_excel(ws, section, data, start_row, total_label):
     ws[f"G{row}"] = total_sum
     return row + 2, total_sum
 
-def process_and_create_excel(process_type, discount_percent, money_formula, payment_period, file_name):
+def process_and_create_excel(process_type, discount_percent, money_formula, payment_period, retroactive_period, file_name):
     # 1) Leer archivo
     df = excel_2_dataframe(file_name)
 
@@ -140,7 +141,11 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
         {
             "concepto": concepto,
             "descrip": percep.loc[percep["clave"] == concepto, "descripcion"].iloc[0],
-            "suma": perord[(perord["conceptosiapsep"] == concepto) & (perord["qnapago"] == lstqnapago)]["importe"].sum(),
+            "suma": perord[
+                (perord["conceptosiapsep"] == concepto) &
+                (perord["qnapago"] > restar_quincenas(lstqnapago, retroactive_period)) &  # Filtrar por quincenas válidas
+                (perord["qnapago"] <= lstqnapago)  # Hasta la quincena actual
+            ]["importe"].sum(),
             "tipo": "Percepción"
         }
         for concepto in perord["conceptosiapsep"].unique()
@@ -152,7 +157,11 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
         {
             "concepto": concepto,
             "descrip": deducs.loc[deducs["concepto"] == concepto, "descripcion"].iloc[0],
-            "suma": gended[(gended["conceptosiapsep"] == concepto) & (gended["qnapago"] == lstqnapago)]["importe"].sum(),
+            "suma": gended[
+                (gended["conceptosiapsep"] == concepto) & 
+                (gended["qnapago"] > restar_quincenas(lstqnapago, retroactive_period)) &
+                (gended["qnapago"] <= lstqnapago)
+            ]["importe"].sum(),
             "tipo": "Deducción"
         }
         for concepto in gended["conceptosiapsep"].unique()
@@ -175,14 +184,22 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
 
     # Deducciones de ley
     total_deduc_ley = sum(
-        gended[(gended["conceptosiapsep"] == concepto) & (gended["qnapago"] == lstqnapago)]["importe"].sum()
+        gended[
+            (gended["conceptosiapsep"] == concepto) & 
+            (gended["qnapago"] > restar_quincenas(lstqnapago, retroactive_period)) &
+            (gended["qnapago"] <= lstqnapago)
+        ]["importe"].sum()
         for concepto in gended["conceptosiapsep"].unique()
         if concepto in LEY_CONCEPTS
     )
 
     # Percepciones de sueldo
     total_sueldo = sum(
-        perord[(perord["conceptosiapsep"] == concepto) & (perord["qnapago"] == lstqnapago)]["importe"].sum()
+        perord[
+            (perord["conceptosiapsep"] == concepto) & 
+            (perord["qnapago"] > restar_quincenas(lstqnapago, retroactive_period)) &
+            (perord["qnapago"] <= lstqnapago)
+            ]["importe"].sum()
         for concepto in perord["conceptosiapsep"].unique()
         if concepto in SUELDO_CONCEPTS
     )
@@ -238,11 +255,3 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
 
     wb.save(filename=filename)
     return filename  
-
-if __name__ == '__main__':
-    try:
-        cli()
-    except Exception as e:
-        print(f"Se ha producido un error: {e}")
-    finally:
-        os.system("pause")
