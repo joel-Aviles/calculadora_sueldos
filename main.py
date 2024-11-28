@@ -1,21 +1,46 @@
-from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import FileResponse
 from funcs.converter import converter, check_valid_dir
 from openpyxl import Workbook
 from datetime import datetime as dt
 import pandas as pd
 import os
-
-# Crear la instancia de FastAPI
-app = FastAPI()
+import sys
 
 # Definir constantes
 LEY_CONCEPTS = ["01", "58", "59", "5G", "70", "74", "77", "IN", "P2", "R9", "RV", "SS"]
 SUELDO_CONCEPTS = ["07", "7A", "7B", "7C", "7D", "7E"]
 
-def load_excel_file(file: UploadFile):
-    df_file = converter(file.file)
+def get_resource_path(relative_path):
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+def load_excel_file(filename):
+    """Carga un archivo Excel desde la ruta correcta, usando get_resource_path."""
+    file_path = get_resource_path(f'excel_files/{filename}')
+    df_file = converter(file_path)
     return df_file
+
+def calculate_amounts(percep_ord, percep_extra, deductions, ley_deductions, sueldo, formula_type):
+    formulas = {
+        '1': {'formula_name': 'Liquido', 'formula': lambda: (percep_ord + percep_extra) - ley_deductions},
+        '2': {'formula_name': 'Neto', 'formula': lambda: (percep_ord + percep_extra) - deductions},
+        '3': {'formula_name': 'Solo percepciones', 'formula': lambda: percep_ord + percep_extra},
+        '4': {'formula_name': 'Percepciones ordinarias - deducciones de ley', 'formula': lambda: percep_ord - ley_deductions},
+        '5': {'formula_name': 'Percepciones extraordinarias - deducciones de ley', 'formula': lambda: percep_extra - ley_deductions},
+        '6': {'formula_name': 'Solo percepciones ordinarias', 'formula': lambda: percep_ord},
+        '7': {'formula_name': 'Solo percepciones extraordinarias', 'formula': lambda: percep_extra},
+        '8': {'formula_name': 'Sueldo (percepciones 07)', 'formula': lambda: sueldo},
+    }
+
+    selected_formula = formulas.get(formula_type, formulas['1'])
+    return {
+        'formula_name': selected_formula['formula_name'],
+        'amount': selected_formula['formula']()
+    }
 
 def get_personal_data(df, personal):
     rfc = df["rfc"].unique()[0]
@@ -51,59 +76,55 @@ def write_excel(ws, section, data, start_row, total_label):
     ws[f"G{row}"] = total_sum
     return row + 2, total_sum
 
-def calculate_amounts(percep_ord, percep_extra, deductions, ley_deductions, sueldo, formula_type):
-    formulas = {
-        '1': {'formula_name': 'Liquido', 'formula': lambda: (percep_ord + percep_extra) - ley_deductions},
-        '2': {'formula_name': 'Neto', 'formula': lambda: (percep_ord + percep_extra) - deductions},
-        '3': {'formula_name': 'Solo percepciones', 'formula': lambda: percep_ord + percep_extra},
-        '4': {'formula_name': 'Percepciones ordinarias - deducciones de ley', 'formula': lambda: percep_ord - ley_deductions},
-        '5': {'formula_name': 'Percepciones extraordinarias - deducciones de ley', 'formula': lambda: percep_extra - ley_deductions},
-        '6': {'formula_name': 'Solo percepciones ordinarias', 'formula': lambda: percep_ord},
-        '7': {'formula_name': 'Solo percepciones extraordinarias', 'formula': lambda: percep_extra},
-        '8': {'formula_name': 'Sueldo (percepciones 07)', 'formula': lambda: sueldo},
-    }
+def prompt_user_input():
+    process_type = input("¿Qué proceso deseas llevar a cabo?\n 1) Pensión alimenticia\n 2) Juicios mercantiles\nIngrese su elección (1 ó 2): ")
+    
+    if process_type == '1':
+        discount_percent = int(input("¿Qué porcentaje se le va a descontar al trabajador? ")) * 0.01
+        money_formula = input("¿Qué fórmula se usará?\n 1) Líquido\n 2) Neto\n 3) Solo percepciones\n 4) Percepciones ordinarias - deducciones de ley\n 5) Percepciones extraordinarias - deducciones de ley\n 6) Solo ordinarias\n 7) Solo extraordinarias\n 8) Percepciones 07\nIngrese el número de su elección (default: 1): ")
+        payment_period = int(input("¿Cuántas quincenas se le va a cobrar? "))
+    else:
+        discount_percent = 1
+        money_formula = '1'
+        payment_period = 1
 
-    selected_formula = formulas.get(formula_type, formulas['1'])
-    return {
-        'formula_name': selected_formula['formula_name'],
-        'amount': selected_formula['formula']()
-    }
+    file_name = input("Nombre del archivo: ")
+    
+    return process_type, discount_percent, money_formula, payment_period, file_name
 
-# Endpoint para procesar archivo
-@app.post("/procesar/")
-async def procesar_archivo(
-    process_type: str = Form(...),
-    discount_percent: float = Form(...),
-    money_formula: str = Form(...),
-    payment_period: int = Form(...),
-    file: UploadFile = File(...)
-):
-    # 1) Leer archivo subido
-    df = converter(file.file)
+def main():
+    # 1) Leer archivo
+    process_type, discount_percent, money_formula, payment_period, file_name = prompt_user_input()
+    df = converter(file_name)
 
     # 2) Leer percepciones y deducciones
-    percep = load_excel_file(await File("percepciones.xlsx"))
+    percep = load_excel_file("percepciones.xlsx")
     perord = df[(df["tipoconcepto"] == "Percepción") & (df["conceptosiapsep"].isin(percep["clave"]))]
     perext = df[(df["tipoconcepto"] == "Percepción") & (~df["conceptosiapsep"].isin(percep["clave"]))]
 
-    deducs = load_excel_file(await File("deducciones.xlsx"))
+    deducs = load_excel_file("deducciones.xlsx")
     deducs["concepto"] = deducs["concepto"].astype(str)
     gended = df[(df["tipoconcepto"] == "Deducción") & (df["conceptosiapsep"].isin(deducs["concepto"]))]
+    outded = df[(df["tipoconcepto"] == "Deducción") & (~df["conceptosiapsep"].isin(deducs["concepto"]))]
 
     # 4) Obtener datos del empleado
     fstqnaproc = df["qnaproc"].min()
     lstqnaproc = df["qnaproc"].max()
-    personal = load_excel_file(await File("Personal.xlsx"))
+    personal = load_excel_file("Personal.xlsx")
     rfc, name = get_personal_data(df, personal)
 
-    # 5) Crear archivo Excel
+    # 5) Crear y escribir en archivo Excel
     wb = Workbook()
     ws = wb.active
     ws.title = "Prueba"
 
     ws["B2"] = "Datos del Empleado"
+    ws["B3"] = "Nombre"
+    ws["B4"] = "RFC"
+    ws["B5"] = "Qna Devengada"
     ws["C3"] = name
     ws["C4"] = rfc
+    ws["C5"] = lstqnaproc
 
     # Percepciones Ordinarias
     data = [
@@ -201,31 +222,22 @@ async def procesar_archivo(
             ws[f"D{xindex}"] = "{0:.2f}".format(mount_per_period)
             xindex += 1
 
-    # 7) Guardar archivo en un directorio temporal
-    userpath = os.path.expanduser(os.getenv('USERPROFILE') or "~")
-    dirpath = check_valid_dir(f"{userpath}/tmp/Pensiones/{rfc}")
-    if not os.path.exists(dirpath):
-        os.makedirs(dirpath)
-    filename = f"{dirpath}/{rfc}-{dt.now().strftime('%d%m%Y')}.xlsx"
-    wb.save(filename)
+    # 7) Guardar archivo Excel
+    userpath = os.path.expanduser(os.getenv('USERPROFILE'))
+    dirpath = check_valid_dir(f"{userpath}/OneDrive - Secretaría de Educación de Guanajuato/tmp/Pensiones/{rfc}")
+    counters = len([file for file in os.listdir(dirpath) if f"{rfc}-" in file and ".xlsx" in file])
+    filename = f"{dirpath}/{rfc}-{dt.now().strftime('%d%m%Y')}_{counters + 1}.xlsx"
 
-    return {"message": "Archivo procesado exitosamente", "filename": filename}
+    try:
+        wb.save(filename=filename)
+        print(f"Archivo guardado exitosamente con el nombre '{filename.split('/')[-1]}'")
+    except Exception as ex:
+        print(f"Error = {ex}")    
 
-# Endpoint para descargar el archivo generado
-@app.get("/descargar/")
-async def descargar_archivo(filename: str):
-    # Verificar si el archivo existe
-    if not os.path.exists(filename):
-        return {"error": "El archivo no existe."}
-    
-    # Retornar el archivo como respuesta
-    return FileResponse(path=filename, filename=os.path.basename(filename), media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-
-@app.get("/health")
-def read_root():
-    return {"health": "ok"}
-
-# Ejecutar la aplicación
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception as e:
+        print(f"Se ha producido un error: {e}")
+    finally:
+        os.system("pause")
