@@ -8,7 +8,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'  # Formato del mensaje
 )
 
-BASE_DIRECTORY = "C:\\caluladora\\pensiones"  # Ruta donde guardarás los archivos procesados.
+BASE_DIRECTORY = os.path.join(os.getcwd(), "calculadora", "pensiones")  # Ruta donde guardarás los archivos procesados.
 TIME_LIMIT = 24 * 60 * 60  # 24 horas en segundos
 
 def is_valid_file_path(file_path: str) -> bool:

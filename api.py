@@ -69,8 +69,8 @@ async def procesar(
         # Verificación adicional
         if generated_file and os.path.exists(generated_file):
             logging.info(f"Endpoint: procesar, file: {generated_file}")
-            # return {"file_path": generated_file.split('/')[3]}
-            return {"file_path": generated_file}
+            file_name = os.path.basename(generated_file)
+            return {"file_path": file_name}
         else:
             logging.error(f"status: 500, Error al generar el archivo procesado, Endpoint: procesar")
             raise HTTPException(status_code=500, detail="Error al generar el archivo procesado, Endpoint: procesar")
@@ -84,7 +84,8 @@ async def procesar(
 
 @app.get("/descargar/{file_name}")
 async def descargar(file_name: str):
-    path = f"C:/caluladora/pensiones/{file_name}"
+    base_path = os.path.join(os.getcwd(), "calculadora", "pensiones")
+    path = f"{base_path}\{file_name}"
 
     # Validar la ruta del archivo
     if not is_valid_file_path(path):

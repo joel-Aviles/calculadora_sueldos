@@ -249,9 +249,10 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
             xindex += 1
 
     # 7) Guardar archivo Excel
-    dirpath = validate_dir(f"C:/caluladora/pensiones")
+    base_dir = os.path.join(os.getcwd(), "calculadora", "pensiones")
+    dirpath = validate_dir(base_dir)
     counters = len([file for file in os.listdir(dirpath) if f"{rfc}_" in file and ".xlsx" in file])
-    filename = f"{dirpath}/{rfc}_{dt.now().strftime('%d%m%Y')}_{counters + 1}.xlsx"
+    filename = f"{dirpath}\{rfc}_{dt.now().strftime('%d%m%Y')}_{counters + 1}.xlsx"
 
     wb.save(filename=filename)
     return filename  
