@@ -81,7 +81,7 @@ async def procesar(
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
 
-@app.get("/descargar/{file_name}")  # :path permite rutas con directorios
+@app.get("/descargar/{file_name}")
 async def descargar(file_name: str):
     path = f"C:/caluladora/pensiones/{file_name}"
 
