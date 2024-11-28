@@ -69,7 +69,8 @@ async def procesar(
         # Verificación adicional
         if generated_file and os.path.exists(generated_file):
             logging.info(f"Endpoint: procesar, file: {generated_file}")
-            return {"file_path": generated_file.split('/')[3]}
+            # return {"file_path": generated_file.split('/')[3]}
+            return {"file_path": generated_file}
         else:
             logging.error(f"status: 500, Error al generar el archivo procesado, Endpoint: procesar")
             raise HTTPException(status_code=500, detail="Error al generar el archivo procesado, Endpoint: procesar")
