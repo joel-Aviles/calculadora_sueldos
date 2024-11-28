@@ -53,6 +53,9 @@ async def procesar(
         with open(temp_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
+        if retroactive_period is None:
+            retroactive_period = 0
+
         # Procesar el archivo
         generated_file = process_and_create_excel(
             process_type,
@@ -66,7 +69,7 @@ async def procesar(
         # Verificación adicional
         if generated_file and os.path.exists(generated_file):
             logging.info(f"Endpoint: procesar, file: {generated_file}")
-            return {"file_path": generated_file}
+            return {"file_path": generated_file.split('/')[3]}
         else:
             logging.error(f"status: 500, Error al generar el archivo procesado, Endpoint: procesar")
             raise HTTPException(status_code=500, detail="Error al generar el archivo procesado, Endpoint: procesar")
@@ -78,20 +81,22 @@ async def procesar(
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
 
-@app.get("/descargar/{file_path:path}")  # :path permite rutas con directorios
-async def descargar(file_path: str):
+@app.get("/descargar/{file_name}")  # :path permite rutas con directorios
+async def descargar(file_name: str):
+    path = f"C:/caluladora/pensiones/{file_name}"
+
     # Validar la ruta del archivo
-    if not is_valid_file_path(file_path):
-        logging.warning(f"Ruta no válida: {file_path}, Endpoint: descargar")
+    if not is_valid_file_path(path):
+        logging.warning(f"Ruta no válida: {path}, Endpoint: descargar")
         raise HTTPException(status_code=406, detail="Ruta no válida")
     
     try:
         # Comprobar si el archivo existe en la ruta proporcionada
-        if os.path.exists(file_path):
-            logging.info(f"Endpoint: descargar, file: {file_path}")
-            return FileResponse(file_path, filename=os.path.basename(file_path))
+        if os.path.exists(path):
+            logging.info(f"Endpoint: descargar, file: {path}")
+            return FileResponse(path, filename=os.path.basename(path))
         else:
-            logging.warning(f"Endpoint: descargar, Archivo no encontrado: {file_path}")
+            logging.warning(f"Endpoint: descargar, Archivo no encontrado: {path}")
             raise HTTPException(status_code=404, detail="Archivo no encontrado.")
     except Exception as e:
         logging.critical(f"Endpoint: descargar, Error al intentar descargar el archivo: {str(e)}")
