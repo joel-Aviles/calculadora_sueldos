@@ -126,7 +126,7 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
     # 5) Crear y escribir en archivo Excel
     wb = Workbook()
     ws = wb.active
-    ws.title = "Prueba"
+    ws.title = "Hoja 1"
 
     ws["B2"] = "Datos del Empleado"
     ws["B3"] = "Nombre"
@@ -247,6 +247,33 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
             ws[f"C{xindex}"] = lstqnapago
             ws[f"D{xindex}"] = "{0:.2f}".format(mount_per_period)
             xindex += 1
+
+        xindex += 2
+
+        # Comprobacion de liquidez
+        ws[f"B{xindex}"] = "Comprobación de liquidez" # TODO: usar col F
+        xindex += 1
+        ws[f"C{xindex}"] = "Periodo de pago retroactivo en meses" # TODO: usar col F
+        ws[f"D{xindex}"] = "Liquidez" # TODO: usar col G
+        ws[f"E{xindex}"] = "Monto aplicable" # TODO: usar col H
+        xindex += 1
+
+        neto = total_percep_ord - total_deduc_ley
+        capacidad_crediticia = neto * 0.3
+        max_discount = neto - capacidad_crediticia
+        counter = 1
+
+        while counter <= 24:
+            liquidez = round(max_discount - (mount_to_discount / counter), 3)
+            mount = round(mount_to_discount / counter, 3)
+
+            ws[f"F{xindex}"] = counter
+            ws[f"G{xindex}"] = liquidez
+            ws[f"H{xindex}"] = mount
+            counter += 1
+            xindex += 1
+    
+        xindex += 2
 
     # 7) Guardar archivo Excel
     base_dir = os.path.join(os.getcwd(), "calculadora", "pensiones")
