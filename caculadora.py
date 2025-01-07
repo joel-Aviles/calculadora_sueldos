@@ -143,7 +143,7 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
             "descrip": percep.loc[percep["clave"] == concepto, "descripcion"].iloc[0],
             "suma": perord[
                 (perord["conceptosiapsep"] == concepto) &
-                (perord["qnapago"] > restar_quincenas(lstqnapago, retroactive_period)) &  # Filtrar por quincenas válidas
+                (perord["qnapago"] >= restar_quincenas(lstqnapago, retroactive_period)) &  # Filtrar por quincenas válidas
                 (perord["qnapago"] <= lstqnapago)  # Hasta la quincena actual
             ]["importe"].sum(),
             "tipo": "Percepción"
@@ -159,7 +159,7 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
             "descrip": deducs.loc[deducs["concepto"] == concepto, "descripcion"].iloc[0],
             "suma": gended[
                 (gended["conceptosiapsep"] == concepto) & 
-                (gended["qnapago"] > restar_quincenas(lstqnapago, retroactive_period)) &
+                (gended["qnapago"] >= restar_quincenas(lstqnapago, retroactive_period)) &
                 (gended["qnapago"] <= lstqnapago)
             ]["importe"].sum(),
             "tipo": "Deducción"
@@ -186,7 +186,7 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
     total_deduc_ley = sum(
         gended[
             (gended["conceptosiapsep"] == concepto) & 
-            (gended["qnapago"] > restar_quincenas(lstqnapago, retroactive_period)) &
+            (gended["qnapago"] >= restar_quincenas(lstqnapago, retroactive_period)) &
             (gended["qnapago"] <= lstqnapago)
         ]["importe"].sum()
         for concepto in gended["conceptosiapsep"].unique()
@@ -197,7 +197,7 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
     total_sueldo = sum(
         perord[
             (perord["conceptosiapsep"] == concepto) & 
-            (perord["qnapago"] > restar_quincenas(lstqnapago, retroactive_period)) &
+            (perord["qnapago"] >= restar_quincenas(lstqnapago, retroactive_period)) &
             (perord["qnapago"] <= lstqnapago)
             ]["importe"].sum()
         for concepto in perord["conceptosiapsep"].unique()
