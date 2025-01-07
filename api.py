@@ -36,7 +36,7 @@ def health():
 @app.post("/procesar")
 async def procesar(
     process_type: str = Form(...),
-    discount_percent: float = Form(...),
+    discount_percent: float = Form(None),
     money_formula: str = Form(None),
     payment_period: int = Form(None),
     retroactive_period: int = Form(None),
