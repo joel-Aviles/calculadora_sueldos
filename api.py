@@ -37,7 +37,7 @@ def health():
 async def procesar(
     process_type: str = Form(...),
     discount_percent: float = Form(None),
-    modified_percent: float = Form(None),
+    modified_discount_percent: float = Form(None),
     money_formula: str = Form(None),
     payment_period: int = Form(None),
     retroactive_period: int = Form(None),
@@ -57,14 +57,14 @@ async def procesar(
         if retroactive_period is None:
             retroactive_period = 0
 
-        if modified_percent is None or modified_percent == 0:
-            modified_percent = discount_percent
+        if modified_discount_percent is None or modified_discount_percent == 0:
+            modified_discount_percent = discount_percent
 
         # Procesar el archivo
         generated_file = process_and_create_excel(
             process_type,
             discount_percent,
-            modified_percent,
+            modified_discount_percent,
             money_formula,
             payment_period,
             retroactive_period,
