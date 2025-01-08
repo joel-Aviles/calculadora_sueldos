@@ -223,11 +223,14 @@ def process_and_create_excel(process_type, discount_percent, modified_discount_p
             ws[f"B{xindex}"] = f"Nuevo descuento del {modified_discount_percent}%"
             ws[f"C{xindex}"] = new_mount_to_discount
 
+            mount_to_discount = new_mount_to_discount
         xindex += 2
-        
+
         # Pagos retroactivos
         ws[f"B{xindex}"] = "Periodo"
-        ws[f"C{xindex}"] = str(payment_period) + " Quincenas"
+        ws[f"C{xindex}"] = str(payment_period) + " Quincenas"        
+        
+        aux_index = xindex
         xindex += 1
         ws[f"B{xindex}"] = "Consecutivo"
         ws[f"C{xindex}"] = "Número de quincena"
@@ -260,34 +263,34 @@ def process_and_create_excel(process_type, discount_percent, modified_discount_p
         xindex += 2
 
         # Comprobacion de liquidez
-        ws[f"B{xindex}"] = "Comprobación de liquidez" # TODO: usar col F
-        xindex += 1
-        ws[f"C{xindex}"] = "Periodo de pago retroactivo en meses" # TODO: usar col F
-        ws[f"D{xindex}"] = "Liquidez" # TODO: usar col G
-        ws[f"E{xindex}"] = "Monto aplicable" # TODO: usar col H
-        xindex += 1
+        ws[f"F{aux_index}"] = "Comprobación de liquidez"
+        aux_index += 1
+        ws[f"F{aux_index}"] = "Periodo de pago retroactivo en meses"
+        ws[f"G{aux_index}"] = "Liquidez"
+        ws[f"H{aux_index}"] = "Monto aplicable"
+        aux_index += 1
 
         neto = total_percep_ord - total_deduc_ley
         capacidad_crediticia = neto * 0.3
         max_discount = neto - capacidad_crediticia
-        # FIXME: usar columnas correspondientes 
+        counter = 1
+
         while counter <= 24:
             liquidez = round(max_discount - (mount_to_discount / counter), 3)
             mount = round(mount_to_discount / counter, 3)
 
-            ws[f"F{xindex}"] = counter
-            ws[f"G{xindex}"] = liquidez
-            ws[f"H{xindex}"] = mount
+            ws[f"F{aux_index}"] = counter
+            ws[f"G{aux_index}"] = liquidez
+            ws[f"H{aux_index}"] = mount
             counter += 1
-            xindex += 1
+            aux_index += 1
     
-        xindex += 2
+        aux_index += 2
 
     # 7) Guardar archivo Excel
     base_dir = os.path.join(os.getcwd(), "calculadora", "pensiones")
     dirpath = validate_dir(base_dir)
     counters = len([file for file in os.listdir(dirpath) if f"{rfc}_" in file and ".xlsx" in file])
-    # FIXME: a veces hace mal el incremento del contador
     filename = f"{dirpath}\{rfc}_{dt.now().strftime('%d%m%Y')}_{counters + 1}.xlsx"
 
     wb.save(filename=filename)
