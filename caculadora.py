@@ -103,7 +103,7 @@ def write_excel(ws, section, data, start_row, total_label):
     ws[f"G{row}"] = total_sum
     return row + 2, total_sum
 
-def process_and_create_excel(process_type, discount_percent, money_formula, payment_period, retroactive_period, file_name):
+def process_and_create_excel(process_type, discount_percent, modified_discount_percent, money_formula, payment_period, retroactive_period, file_name):
     # 1) Leer archivo
     df = excel_2_dataframe(file_name)
 
@@ -212,10 +212,19 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
         ws[f"B{xindex}"] = "Fórmula usada"
         ws[f"C{xindex}"] = formula_result["formula_name"]
         xindex += 1
-        ws[f"B{xindex}"] = "Descuento del " + str(discount_percent) + "%"
+        ws[f"B{xindex}"] = f"Descuento del {discount_percent}%"
         ws[f"C{xindex}"] = mount_to_discount
-        xindex += 2
 
+        if(modified_discount_percent is not discount_percent):
+            new_mount_to_discount = formula_result["amount"] * (modified_discount_percent / 100)
+
+            xindex += 1
+            ws[f"B{xindex - 1}"] = f"Anterior descuento del {discount_percent}%"
+            ws[f"B{xindex}"] = f"Nuevo descuento del {modified_discount_percent}%"
+            ws[f"C{xindex}"] = new_mount_to_discount
+
+        xindex += 2
+        
         # Pagos retroactivos
         ws[f"B{xindex}"] = "Periodo"
         ws[f"C{xindex}"] = str(payment_period) + " Quincenas"
@@ -261,8 +270,7 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
         neto = total_percep_ord - total_deduc_ley
         capacidad_crediticia = neto * 0.3
         max_discount = neto - capacidad_crediticia
-        counter = 1
-
+        # FIXME: usar columnas correspondientes 
         while counter <= 24:
             liquidez = round(max_discount - (mount_to_discount / counter), 3)
             mount = round(mount_to_discount / counter, 3)
@@ -279,6 +287,7 @@ def process_and_create_excel(process_type, discount_percent, money_formula, paym
     base_dir = os.path.join(os.getcwd(), "calculadora", "pensiones")
     dirpath = validate_dir(base_dir)
     counters = len([file for file in os.listdir(dirpath) if f"{rfc}_" in file and ".xlsx" in file])
+    # FIXME: a veces hace mal el incremento del contador
     filename = f"{dirpath}\{rfc}_{dt.now().strftime('%d%m%Y')}_{counters + 1}.xlsx"
 
     wb.save(filename=filename)
