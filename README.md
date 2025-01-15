@@ -76,7 +76,12 @@ Este proyecto depende de las siguientes bibliotecas (listadas en `requirements.t
 
 ---
 
-#### 6. **Flujo de Datos**
+#### 6. **Documentación de endpoints**
+- https://calculadora-sueldos.onrender.com/docs
+
+---
+
+#### 7. **Flujo de Datos**
 - **Entrada de Usuario:** Los datos ingresados a través de la API son procesados por `api.py`.
 - **Lógica Principal:** `calculadora.py` realiza las operaciones matemáticas y valida las entradas mediante funciones auxiliares de `helpers.py`.
 - **Salida:** Los resultados son enviados de vuelta al usuario a través de respuestas HTTP.
@@ -84,14 +89,14 @@ Este proyecto depende de las siguientes bibliotecas (listadas en `requirements.t
 
 ---
 
-#### 7. **Prácticas de Desarrollo**
+#### 8. **Prácticas de Desarrollo**
 - **Modularidad:** Cada funcionalidad está separada en módulos específicos.
 - **Registro de Eventos:** El sistema de logs facilita el seguimiento de errores y eventos importantes.
 - **Control de Versiones:** Uso de Git para gestionar cambios en el código fuente.
 
 ---
 
-#### 8. **Pendientes y Recomendaciones**
+#### 9. **Pendientes y Recomendaciones**
 - **Documentación de la API:** Agregar ejemplos de solicitudes y respuestas para los endpoints disponibles.
 - **Pruebas Unitarias:** Implementar pruebas para validar las operaciones de `calculadora.py` y las respuestas de `api.py`.
 - **Optimizaciones:** Revisar el rendimiento del código en escenarios de alta carga.
